@@ -1,54 +1,60 @@
-const { PredictionServiceClient } = require("@google-cloud/aiplatform").v1;
-require("dotenv").config();
+const {VertexAI} = require('@google-cloud/vertexai');
 
-// Provide the path to your service account key file
-const serviceAccountPath = "service-account-key.json"; // Update this path
+// Initialize Vertex with your Cloud project and location
+const vertex_ai = new VertexAI({project: 'csci-5409-441200', location: 'us-central1'});
+const model = 'gemini-1.5-flash-002';
 
-const projectId = process.env.GCP_PROJECT_ID; // Your Google Cloud Project ID
-const location = "us-central1"; // Region for Vertex AI
+// Instantiate the models
+const generativeModel = vertex_ai.preview.getGenerativeModel({
+  model: model,
+  generationConfig: {
+    'maxOutputTokens': 8192,
+    'temperature': 1,
+    'topP': 0.95,
+  },
+  safetySettings: [
+    {
+      'category': 'HARM_CATEGORY_HATE_SPEECH',
+      'threshold': 'OFF',
+    },
+    {
+      'category': 'HARM_CATEGORY_DANGEROUS_CONTENT',
+      'threshold': 'OFF',
+    },
+    {
+      'category': 'HARM_CATEGORY_SEXUALLY_EXPLICIT',
+      'threshold': 'OFF',
+    },
+    {
+      'category': 'HARM_CATEGORY_HARASSMENT',
+      'threshold': 'OFF',
+    }
+  ],
+});
+
 
 exports.generateItinerary = async (tripDetails) => {
-  const client = new PredictionServiceClient({
-    keyFilename: serviceAccountPath, // Explicitly load credentials
-    apiEndpoint: `${location}-aiplatform.googleapis.com`, // Explicit gRPC endpoint
-  });
-
-  const endpoint = `projects/${projectId}/locations/${location}/publishers/google/models/text-bison:predict`;
-
-  const prompt = `
-    Create a detailed itinerary for the following trip:
+  const prompt = {
+    text: `Create a detailed itinerary for the following trip:
     - Destination: ${tripDetails.destination}
     - Duration: ${tripDetails.duration} days
     - Travel Dates: ${tripDetails.startDate} to ${tripDetails.endDate}
     - Number of People: ${tripDetails.numberOfPeople}
     - Pace of the Trip: ${tripDetails.pace}
     - Activity Preferences: ${tripDetails.activityPreferences}
-    - Budget: ${tripDetails.budget}
+    - Budget: ${tripDetails.budget} CAD
     - Type of Trip: ${tripDetails.tripType}
-
+    
     Provide a day-wise breakdown of activities and travel recommendations.
-  `;
-
-  const instance = { content: prompt };
-  const parameters = {
-    temperature: 0.7, // Creativity level
-    maxOutputTokens: 500, // Maximum tokens in response
+    Also in the end, rate and say if this place is best for the user requirements.`,
+  };
+  const req = {
+    contents: [
+      {role: 'user', parts: [prompt]}
+    ],
   };
 
-  try {
-    const [response] = await client.predict({
-      endpoint,
-      instances: [instance],
-      parameters,
-    });
+  const streamingResp = await generativeModel.generateContentStream(req);
 
-    if (response.predictions && response.predictions.length > 0) {
-      return response.predictions[0].content; // Return the generated itinerary
-    } else {
-      throw new Error("No predictions returned from the AI model.");
-    }
-  } catch (err) {
-    console.error("Error generating itinerary:", err);
-    throw new Error("Failed to generate itinerary.");
-  }
-};
+  return JSON.stringify(await streamingResp.response);
+}

@@ -1,0 +1,45 @@
+# Node modules
+node_modules/
+
+# Build output
+dist/
+build/
+
+# Temporary files
+*.log
+*.tmp
+*.temp
+
+# Editor directories and files
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Dependency directories
+yarn.lock
+package-lock.json
+
+# Cache directories
+.cache/
+.pnp/
+.pnp.js
+.DS_Store
+Thumbs.db
+
+# Environment variables
+.env
+.env.local
+.env.development
+.env.test
+.env.production
+
+# Lint and formatting
+.eslintcache
+.prettiercache
+
+# Test coverage
+coverage/
+
+# IDE specific settings
+*.iml

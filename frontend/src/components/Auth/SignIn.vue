@@ -73,6 +73,7 @@ export default {
 
         const { accessToken } = await response.json();
         localStorage.setItem("accessToken", accessToken); // Save token to localStorage
+        localStorage.setItem("email", this.email); 
         alert("Login successful!");
         this.$router.push("/home"); // Redirect to home page
       } catch (err) {
