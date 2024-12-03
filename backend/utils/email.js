@@ -25,7 +25,6 @@ exports.sendEmailNotification = async ({ email, subject, message }) => {
 
     // Send the email
     const result = await transporter.sendMail(mailOptions);
-    console.log(`Email sent to ${email}:`, result.response);
     return result;
   } catch (error) {
     console.error(`Failed to send email to ${email}:`, error);

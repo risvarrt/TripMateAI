@@ -1,10 +1,18 @@
 const AWS = require("aws-sdk");
-require("dotenv").config();
+const { fetchAWSSecret } = require("../utils/lamdaSecrets");
+
 // Configure AWS
-AWS.config.update({
-  region: "us-east-1",
-});
-const dynamoDB = new AWS.DynamoDB.DocumentClient();
+let dynamoDB;
+(async () => {
+  const awsSecrets = await fetchAWSSecret();
+  AWS.config.update({
+    region: awsSecrets.REGION,
+    accessKeyId: awsSecrets.ACCESS_KEY_ID,
+    secretAccessKey: awsSecrets.SECRET_ACCESS_KEY,
+    sessionToken: awsSecrets.SESSION_TOKEN,
+  });
+  dynamoDB = new AWS.DynamoDB.DocumentClient();
+})();
 
 // Save trip to DynamoDB
 exports.saveTripToDynamoDB = async (tripDetails) => {

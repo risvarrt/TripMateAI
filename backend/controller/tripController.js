@@ -1,5 +1,5 @@
 const { generateItinerary } = require("../utils/gemini");
-const { saveTripToDynamoDB, getTripsByEmail, getTripById } = require("../utils/dynamodb");
+const { saveTripToDynamoDB, getTripsByEmail, getTripById } = require("../db/dynamodb");
 const { uploadToS3 } = require("../utils/s3");
 const { generatePDF } = require("../utils/pdfGenerator");
 const { sendEmailNotification } = require("../utils/email");
@@ -25,8 +25,9 @@ exports.planTrip = async (req, res) => {
     res.status(200).json({
       message: "Trip planned successfully!",
       tripId,
-      itinerary: parsedItinerary,
+      itinerary: parsedItinerary.join("\n"), // Convert array to string with newline separator
     });
+    
   } catch (err) {
     console.error("Error planning trip:", err);
     res.status(500).json({ error: "Failed to plan trip." });

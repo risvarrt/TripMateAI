@@ -1,13 +1,22 @@
 const AWS = require("aws-sdk");
 const crypto = require("crypto");
-require("dotenv").config();
+const { fetchAWSSecret } = require("./lamdaSecrets");
 
-AWS.config.update({ region: process.env.AWS_REGION });
+let cognito, CLIENT_ID, CLIENT_SECRET;
 
-const cognito = new AWS.CognitoIdentityServiceProvider();
+(async () => {
+  const awsSecrets = await fetchAWSSecret();
+  AWS.config.update({
+    region: awsSecrets.REGION,
+    accessKeyId: awsSecrets.ACCESS_KEY_ID,
+    secretAccessKey: awsSecrets.SECRET_ACCESS_KEY,
+    sessionToken: awsSecrets.SESSION_TOKEN,
+  });
 
-const CLIENT_ID = process.env.CLIENT_ID; // App Client ID
-const CLIENT_SECRET = process.env.CLIENT_SECRET; // App Client Secret
+  cognito = new AWS.CognitoIdentityServiceProvider();
+  CLIENT_ID = awsSecrets.CLIENT_ID;
+  CLIENT_SECRET = awsSecrets.CLIENT_SECRET;
+})();
 
 // Generate the SECRET_HASH
 const generateSecretHash = (username) => {
@@ -21,7 +30,7 @@ const generateSecretHash = (username) => {
 exports.signUp = async (email, password, firstName, lastName) => {
   const params = {
     ClientId: CLIENT_ID,
-    SecretHash: generateSecretHash(email), // Include the SECRET_HASH
+    SecretHash: generateSecretHash(email),
     Username: email,
     Password: password,
     UserAttributes: [
@@ -37,7 +46,7 @@ exports.signUp = async (email, password, firstName, lastName) => {
 exports.loginUser = async (email, password) => {
   const params = {
     AuthFlow: "USER_PASSWORD_AUTH",
-    ClientId: CLIENT_ID, // Use defined CLIENT_ID
+    ClientId: CLIENT_ID,
     AuthParameters: {
       USERNAME: email,
       PASSWORD: password,
@@ -45,7 +54,7 @@ exports.loginUser = async (email, password) => {
   };
 
   if (CLIENT_SECRET) {
-    params.AuthParameters.SECRET_HASH = generateSecretHash(email); // Use CLIENT_SECRET for SECRET_HASH
+    params.AuthParameters.SECRET_HASH = generateSecretHash(email);
   }
 
   const response = await cognito.initiateAuth(params).promise();
@@ -58,7 +67,7 @@ exports.loginUser = async (email, password) => {
 
 exports.resendConfirmationCode = async (email) => {
   const params = {
-    ClientId: process.env.CLIENT_ID, // Cognito App Client ID
+    ClientId: CLIENT_ID,
     Username: email,
   };
 
@@ -67,8 +76,8 @@ exports.resendConfirmationCode = async (email) => {
 
 exports.confirmUser = async (email, code) => {
   const params = {
-    ClientId: process.env.CLIENT_ID,
-    SecretHash: generateSecretHash(email), // Replace with your Cognito App Client ID
+    ClientId: CLIENT_ID,
+    SecretHash: generateSecretHash(email),
     Username: email,
     ConfirmationCode: code,
   };

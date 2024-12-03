@@ -34,6 +34,7 @@ const generativeModel = vertex_ai.preview.getGenerativeModel({
 
 
 exports.generateItinerary = async (tripDetails) => {
+
   const prompt = {
     text: `Create a detailed itinerary for the following trip:
     - Destination: ${tripDetails.destination}
@@ -53,7 +54,6 @@ exports.generateItinerary = async (tripDetails) => {
       {role: 'user', parts: [prompt]}
     ],
   };
-
   const streamingResp = await generativeModel.generateContentStream(req);
 
   return JSON.stringify(await streamingResp.response);

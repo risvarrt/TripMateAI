@@ -1,31 +1,44 @@
 <template>
-  <div class="min-h-screen bg-gradient-to-r from-purple-400 to-blue-500 flex items-center justify-center">
-    <div class="bg-white rounded-lg shadow-lg p-8 w-full max-w-4xl flex">
+  <div class="min-h-screen bg-gradient-to-r from-blue-400 to-purple-500 flex items-center justify-center">
+    <div class="bg-white rounded-lg shadow-lg p-8 w-full max-w-5xl flex">
       <!-- Left Section -->
-      <div class="w-1/2 hidden md:flex flex-col items-center justify-center p-6 bg-cover bg-center"
-        style="background-image: url('https://source.unsplash.com/800x600/?nature,sky');">
-        <h1 class="text-4xl font-bold text-white">Welcome Back</h1>
-        <p class="mt-4 text-white text-center">
-          Lorem ipsum dolor sit amet, consectetur adipiscing elit. Aenean
-          suspendisse aliquam varius rutrum purus malesuada ac.
+      <div
+        class="w-1/2 hidden md:flex flex-col items-center justify-center p-6 bg-cover bg-center text-black"
+        style="background-image: url('https://source.unsplash.com/800x600/?city,night');"
+      >
+        <h1 class="text-5xl font-bold font-serif mb-4">TripMate AI</h1>
+        <p class="text-center text-lg">
+          Your gateway to unforgettable adventures.
         </p>
-        <a href="#" class="mt-4 text-blue-200 underline">Learn more</a>
       </div>
 
       <!-- Right Section -->
       <div class="w-full md:w-1/2">
-        <h2 class="text-2xl font-bold mb-4 text-center">Login</h2>
+        <h2 class="text-3xl font-extrabold mb-4 text-center text-gray-800">Login</h2>
         <p class="text-gray-600 text-center mb-6">
           Enter your credentials to access your account.
         </p>
 
         <form class="space-y-4" @submit.prevent="signIn">
-          <input type="email" placeholder="Email" v-model="email" class="w-full px-4 py-2 border rounded-lg focus:outline-none" />
-          <input type="password" placeholder="Password" v-model="password"
-            class="w-full px-4 py-2 border rounded-lg focus:outline-none" />
+          <input
+            type="email"
+            placeholder="Email"
+            v-model="email"
+            class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring focus:ring-blue-300"
+            required
+          />
+          <input
+            type="password"
+            placeholder="Password"
+            v-model="password"
+            class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring focus:ring-blue-300"
+            required
+          />
 
-          <button type="submit"
-            class="w-full bg-purple-600 text-white font-bold py-2 px-4 rounded-lg hover:bg-purple-700 transition">
+          <button
+            type="submit"
+            class="w-full bg-blue-600 text-white font-bold py-3 px-4 rounded-lg hover:bg-blue-700 transition"
+          >
             Login
           </button>
         </form>
@@ -36,7 +49,7 @@
             class="text-blue-600 hover:underline transition"
             @click="goToRegister"
           >
-            Register
+            Register here
           </button>
         </p>
       </div>
@@ -45,6 +58,7 @@
 </template>
 
 <script>
+
 export default {
   data() {
     return {
@@ -57,13 +71,8 @@ export default {
       try {
         const response = await fetch("http://localhost:3000/auth/login", {
           method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            email: this.email,
-            password: this.password,
-          }),
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ email: this.email, password: this.password }),
         });
 
         if (!response.ok) {
@@ -72,19 +81,18 @@ export default {
         }
 
         const { accessToken } = await response.json();
-        localStorage.setItem("accessToken", accessToken); // Save token to localStorage
-        localStorage.setItem("email", this.email); 
+        localStorage.setItem("accessToken", accessToken);
+        localStorage.setItem("email", this.email);
         alert("Login successful!");
-        this.$router.push("/home"); // Redirect to home page
+        this.$router.push("/home");
       } catch (err) {
-        console.error(err);
-        alert(err.message || "An error occurred while logging in.");
+        console.error("Error:", err);
+        alert(err.message || "An error occurred.");
       }
     },
     goToRegister() {
-      this.$router.push("/register"); // Navigate to register page
+      this.$router.push("/register");
     },
   },
 };
-
 </script>

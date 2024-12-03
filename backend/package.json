@@ -20,6 +20,7 @@
         "fs": "^0.0.1-security",
         "jsonwebtoken": "^9.0.2",
         "nodemailer": "^6.9.16",
+        "path": "^0.12.7",
         "pdfkit": "^0.15.1"
     },
     "devDependencies": {

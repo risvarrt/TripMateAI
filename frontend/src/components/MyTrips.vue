@@ -1,32 +1,48 @@
 <template>
   <div class="min-h-screen bg-gray-100 px-10 py-6">
-    <h1 class="text-3xl font-bold mb-6">My Trips</h1>
-    <div v-if="!loading" class="grid grid-cols-1 md:grid-cols-3 gap-6">
+    <h1 class="text-4xl font-bold mb-6 text-center text-gray-800">My Trips</h1>
+
+    <div v-if="!loading" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8">
+      <!-- Trip Card -->
       <div
         v-for="trip in trips"
         :key="trip.trip_id"
-        class="bg-white shadow-lg rounded-lg p-4 flex flex-col items-center"
+        class="bg-white shadow-lg rounded-lg overflow-hidden transform transition-transform duration-300 hover:scale-105"
       >
-        <img :src="trip.image" alt="Trip" class="w-full h-40 object-cover rounded-lg mb-4" />
-        <h2 class="text-lg font-bold">{{ trip.destination }}</h2>
-        <p class="text-gray-600">Duration: {{ trip.duration }} days</p>
-        <div class="mt-4">
-          <button
-            @click="viewTrip(trip)"
-            class="bg-blue-500 text-white px-4 py-2 rounded"
-          >
-            View
-          </button>
+        <img
+          :src="trip.image"
+          alt="Trip"
+          class="w-full h-48 object-cover"
+        />
+        <div class="p-6">
+          <h2 class="text-xl font-bold text-gray-800">{{ trip.destination }}</h2>
+          <p class="text-sm text-gray-600 mt-2">
+            Duration: <span class="font-medium">{{ trip.duration }} days</span>
+          </p>
+          <div class="flex justify-between items-center mt-4">
+            <button
+              @click="viewTrip(trip)"
+              class="bg-blue-600 text-white text-sm px-4 py-2 rounded shadow hover:bg-blue-700 transition"
+            >
+              View Details
+            </button>
+            <span class="text-gray-500 text-sm italic">
+              {{ trip.startDate }}
+            </span>
+          </div>
         </div>
       </div>
     </div>
+
     <div v-else>
-      <p>Loading...</p>
+      <p class="text-center text-lg text-gray-600">Loading your trips...</p>
     </div>
   </div>
 </template>
 
+
 <script>
+
 export default {
   data() {
     return {

@@ -1,22 +1,73 @@
 <template>
-  <div class="min-h-screen bg-gray-100 px-10 py-6">
-    <div v-if="trip">
-      <h1 class="text-3xl font-bold mb-4">{{ trip.destination }}</h1>
-      <p class="text-gray-700 mb-6">Trip Type: {{ trip.tripType }}</p>
-      <p class="text-gray-700 mb-6">Number of People: {{ trip.numberOfPeople }}</p>
-      <p class="text-gray-700 mb-6">Start Date: {{ trip.startDate }}</p>
-      <p class="text-gray-700 mb-6">End Date: {{ trip.endDate }}</p>
-      <p class="text-gray-700 mb-6">Budget: {{ trip.budget }}</p>
+  <div class="min-h-screen bg-gray-100 px-10 py-10">
+    <div class="max-w-4xl mx-auto bg-white shadow-lg rounded-lg overflow-hidden">
+      <div class="p-6">
+        <div v-if="trip">
+          <!-- Destination Title -->
+          <div class="flex justify-between items-center">
+            <h1 class="text-3xl font-extrabold text-gray-800">
+              {{ trip.destination }}
+            </h1>
+            <p class="text-sm text-gray-600 italic">
+              Budget: CAD {{ trip.budget }}
+            </p>
+          </div>
 
-      <h2 class="text-2xl font-bold mt-8">Itinerary</h2>
-      <div v-html="formattedItinerary" class="bg-white shadow p-4 rounded"></div>
+          <!-- Trip Details -->
+          <div class="grid grid-cols-2 gap-6 mt-6">
+            <div>
+              <p class="text-gray-500 font-medium">Trip Type:</p>
+              <p class="text-lg font-semibold text-gray-800">
+                {{ trip.tripType }}
+              </p>
+            </div>
+            <div>
+              <p class="text-gray-500 font-medium">Group Size:</p>
+              <p class="text-lg font-semibold text-gray-800">
+                {{ trip.numberOfPeople }}
+              </p>
+            </div>
+            <div>
+              <p class="text-gray-500 font-medium">Start Date:</p>
+              <p class="text-lg font-semibold text-gray-800">
+                {{ new Date(trip.startDate).toLocaleDateString() }}
+              </p>
+            </div>
+            <div>
+              <p class="text-gray-500 font-medium">End Date:</p>
+              <p class="text-lg font-semibold text-gray-800">
+                {{ new Date(trip.endDate).toLocaleDateString() }}
+              </p>
+            </div>
+          </div>
 
-      <button @click="savePDF" class="bg-green-500 text-white px-4 py-2 rounded mt-6">
-        Save PDF
-      </button>
-    </div>
-    <div v-else>
-      <p>Loading trip details...</p>
+          <!-- Itinerary Section -->
+          <div class="mt-8">
+            <h2 class="text-2xl font-bold text-gray-800 border-b-2 border-gray-300 pb-2">
+              Itinerary
+            </h2>
+            <div
+              v-html="formattedItinerary"
+              class="bg-gray-50 mt-4 p-6 rounded-lg shadow-inner prose prose-indigo"
+            ></div>
+          </div>
+
+          <!-- Back Button -->
+          <div class="mt-10 text-center">
+            <button
+              @click="goToMyTrips"
+              class="px-6 py-3 bg-indigo-600 text-white text-lg font-medium rounded-md shadow hover:bg-indigo-700 transition"
+            >
+              Back to My Trips
+            </button>
+          </div>
+        </div>
+        <div v-else>
+          <p class="text-gray-700 text-lg text-center">
+            Loading trip details...
+          </p>
+        </div>
+      </div>
     </div>
   </div>
 </template>
@@ -48,25 +99,17 @@ export default {
     }
   },
   methods: {
-    async savePDF() {
-      try {
-        await fetch("http://localhost:3000/trips/save-pdf", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ tripId: this.trip.trip_id }),
-        });
-        alert("PDF saved and emailed successfully!");
-      } catch (error) {
-        console.error("Error saving PDF:", error);
-      }
+    goToMyTrips() {
+      this.$router.push("/my-trips"); // Navigate back to My Trips page
     },
   },
 };
 </script>
+
 <style>
-/* Optional: Use TailwindCSS or a CSS library for better styling of markdown content */
+/* Additional Styling */
 .prose {
   font-family: sans-serif;
-  line-height: 1.6;
+  line-height: 1.8;
 }
 </style>
