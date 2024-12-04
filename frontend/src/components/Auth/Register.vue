@@ -101,7 +101,7 @@ export default {
       }
 
       try {
-        const response = await fetch(`${VUE_APP_BACKEND_URL}/auth/register`, {
+        const response = await fetch(`${process.env.VUE_APP_BACKEND_URL}/auth/register`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({

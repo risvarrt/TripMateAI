@@ -69,9 +69,9 @@ export default {
   methods: {
     async signIn() {
       try {
-        console.log(`http://10.0.2.10:3000/trips/plan-trip`);
+        console.log(process.env.VUE_APP_BACKEND_URL);
 
-        const response = await fetch(`${VUE_APP_BACKEND_URL}/auth/login`, {
+        const response = await fetch(`${process.env.VUE_APP_BACKEND_URL}/auth/login`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ email: this.email, password: this.password }),

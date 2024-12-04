@@ -31,4 +31,5 @@ temp/
 
 # Generated keys and credentials
 keys/
+temp-gcp-key.json
 service-account-key.json

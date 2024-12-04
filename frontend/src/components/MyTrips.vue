@@ -53,7 +53,7 @@ export default {
   async mounted() {
     const userEmail = localStorage.getItem("email");
     try {
-      const response = await fetch(`${VUE_APP_BACKEND_URL}/trips/${userEmail}`);
+      const response = await fetch(`${process.env.VUE_APP_BACKEND_URL}/trips/${userEmail}`);
       
       const data = await response.json();
 
