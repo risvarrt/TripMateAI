@@ -251,7 +251,7 @@ export default {
     async submitForm() {
       try {
         // After
-        const response = await axios.post(`http://10.0.2.10:3000/trips/plan-trip`, this.trip);
+        const response = await axios.post(`${VUE_APP_BACKEND_URL}/trips/plan-trip`, this.trip);
         this.itinerary = response.data.itinerary;
         this.tripId = response.data.tripId;
       } catch (err) {
@@ -260,7 +260,7 @@ export default {
     },
     async savePDFAndRedirect() {
       try {
-        await axios.post(`http://10.0.2.10:3000/trips/upload-itinerary-pdf`, {
+        await axios.post(`${VUE_APP_BACKEND_URL}/trips/upload-itinerary-pdf`, {
           tripId: this.tripId,
         });
         alert("PDF saved successfully! Redirecting to My Trips...");

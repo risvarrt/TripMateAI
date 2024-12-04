@@ -44,34 +44,6 @@ Resources:
         - Key: Name
           Value: TripMatePublicSubnet
 
-  # Private Subnet
-  PrivateSubnet:
-    Type: AWS::EC2::Subnet
-    Properties:
-      VpcId: !Ref TripMateVPC
-      CidrBlock: 10.0.2.0/24
-      MapPublicIpOnLaunch: false
-      AvailabilityZone: !Select [0, !GetAZs '']
-      Tags:
-        - Key: Name
-          Value: TripMatePrivateSubnet
-
-  # NAT Gateway EIP
-  NatEIP:
-    Type: AWS::EC2::EIP
-    Properties:
-      Domain: vpc
-
-  # NAT Gateway
-  NatGateway:
-    Type: AWS::EC2::NatGateway
-    Properties:
-      AllocationId: !GetAtt NatEIP.AllocationId
-      SubnetId: !Ref PublicSubnet
-      Tags:
-        - Key: Name
-          Value: TripMateNatGateway
-
   # Route Tables
   PublicRouteTable:
     Type: AWS::EC2::RouteTable
@@ -80,14 +52,6 @@ Resources:
       Tags:
         - Key: Name
           Value: TripMatePublicRouteTable
-
-  PrivateRouteTable:
-    Type: AWS::EC2::RouteTable
-    Properties:
-      VpcId: !Ref TripMateVPC
-      Tags:
-        - Key: Name
-          Value: TripMatePrivateRouteTable
 
   # Routes
   PublicRoute:
@@ -98,25 +62,12 @@ Resources:
       DestinationCidrBlock: 0.0.0.0/0
       GatewayId: !Ref InternetGateway
 
-  PrivateRoute:
-    Type: AWS::EC2::Route
-    Properties:
-      RouteTableId: !Ref PrivateRouteTable
-      DestinationCidrBlock: 0.0.0.0/0
-      NatGatewayId: !Ref NatGateway
-
   # Subnet Route Table Associations
   PublicSubnetRouteTableAssociation:
     Type: AWS::EC2::SubnetRouteTableAssociation
     Properties:
       SubnetId: !Ref PublicSubnet
       RouteTableId: !Ref PublicRouteTable
-
-  PrivateSubnetRouteTableAssociation:
-    Type: AWS::EC2::SubnetRouteTableAssociation
-    Properties:
-      SubnetId: !Ref PrivateSubnet
-      RouteTableId: !Ref PrivateRouteTable
 
   # Security Groups
   FrontendSecurityGroup:
@@ -132,7 +83,7 @@ Resources:
         - IpProtocol: tcp
           FromPort: 8080
           ToPort: 8080
-          CidrIp: 0.0.0.0/0 # Allow HTTP traffic to the frontend
+          CidrIp: 0.0.0.0/0
         - IpProtocol: tcp
           FromPort: 443
           ToPort: 443
@@ -150,16 +101,14 @@ Resources:
         - IpProtocol: tcp
           FromPort: 3000
           ToPort: 3000
-          SourceSecurityGroupId: !Ref FrontendSecurityGroup  # Allow frontend instance to access backend
+          SourceSecurityGroupId: !Ref FrontendSecurityGroup
         - IpProtocol: tcp
           FromPort: 22
           ToPort: 22
-          SourceSecurityGroupId: !Ref FrontendSecurityGroup  # Allow SSH from the frontend instance
+          SourceSecurityGroupId: !Ref FrontendSecurityGroup
       Tags:
         - Key: Name
           Value: TripMateBackendSG
-
-
 
   # Cognito User Pool
   CognitoUserPool:
@@ -194,9 +143,9 @@ Resources:
         - openid
         - aws.cognito.signin.user.admin
       CallbackURLs:
-        - 'https://localhost/'  # Update as needed
+        - 'https://localhost/'
       LogoutURLs:
-        - 'https://localhost/'  # Update as needed
+        - 'https://localhost/'
 
   # S3 Bucket
   TripItineraryBucket:
@@ -239,21 +188,7 @@ Resources:
     Properties:
       Name: 'trip_mate/gcpsecrets'
       Description: 'GCP service account secret key for TripMate application'
-      SecretString: !Sub |
-        {
-          "type": "service_account",
-          "project_id": "csci-5410-442522",
-          "private_key_id": "5d8e4d397150aaf78daf97bff4d8435c190735a2",
-          "private_key": "-----BEGIN PRIVATE KEY-----\nMIIEvQIBADANBgkqhkiG9w0BAQEFAASCBKcwggSjAgEAAoIBAQCqiKjgeXlaq77Q\nhil4dsV16grfL1cOnxjKdn7+toZzsSS6bmaclTZqh+Ee07zUJLaZS1jPrlotxuL0\ndZtLXIWoZyU9fSb+AHyWJ6QVenTtKSPN/5MdU7YztT333W6mAllxRvtcpZ0gC2+O\naxb9o9y0akf6n305dQ3U7w03zxOs4puWY7MZIjw/znX7+tpP0ldVbgtblXY7uGEv\nMDj2vf8Tb94WFhC/K0sn34v9sApif8jjxnrO/FY9nr/q77EcUNlZ1AOjTcXNMn/k\nE5Xx08vaW8J7QjOC0f5Dm1iIjqlwwpUNx04+e0CGjAdLaZpgEDGhK1El/TjfOldN\n4ySalbm/AgMBAAECggEAEGRVc0pJ32zNySZ0OweToGtwQxa+VAH39JIiT+KElv9K\ni/8LrvZqxh+shHWO24dx49dJwKC+O1M4Qo5BcKOCl3bergPnKRgr4ZUK4SOltJw1\nPFpaLkH7LAo6XCZ1OdDU/x33EGc87LUcsoBZs+S51L+4jn8hHtJBE5ws1ZX6iq4P\nYOypY1atYcQo7MNga8o6jAqqr/I5KMv4iO226sT1DMIzoBPLlIYiUNaNmrj759Op\nvoygVQEK8uAV8xYldUrJXt7eCTZfm9+yctg5e+EHQAemIPySkzWpixrmP1XSNPb5\nhcrN/LNqXcQZvoiTeKFOWffVZ7h0kJbABKB4EAjvOQKBgQDUpLCJ2nYV3YnUhqo8\nUyLe/lGPha8CdreDHtRz0QqEiHWHnwxRkva0831BdIWldlXgUN/HVlnuLjL5YVsY\nEjEOr2Jd5G1PymDtnppqt1EFE8FqLZcj43txE4yiZkE8B2fHcjltkNps6qdmfHwT\nehI7qSoxsBcRpKK1adUD5ROQmQKBgQDNTfzI5Epiy3VOs6lx07IeQT0/xI0lRrHa\neLUEix5iefC2E0EcHpU7EyCAFe67cuWNX4oxcbXvXkcluav7tiKw0ES0mHo5AMts\nAkVnH/50EyYiOpSV64ZkhLWESCI/ZcVq989QZGwtWdZNg9X6GWNVWw1mmG1Dc0UN\nI9EkfPscFwKBgCtlnP3VTuoxd1KfVRjQoro9zulqkAgBsHwbC6LDU9EuhEX0aLAx\nPRY65yI3pJrbJrWL68+jyOC6Hv8UJmIoPEjR9FJTLxfsppF4H+2NkgRmPr/ro//Y\nCjZOlhICqmeU31It9phsypcV4Koi17Ol4xi38nuHg32/StGZUrbjxnVpAoGASYBd\nOvL4aqxawCV0SYs33rsOmZDd03We4Q+MBydjZnAvrI/yJIYSeUbcwN6ZTMTSyC1n\nRVJnh14ibLAvkXtgqhq2Lk3UnCnbqjyZ6lS6/YWJhoGghpf+0mfssII+uKHP7v7v\nWuHJFOdv4OqNJfAG7x0dDBkQLTDMjOrAyqZwJFsCgYEApJZg3jBJuw/Kv0QS2A3L\niyqUUjOUSp1R+4td3f1mY9XPJWGxynjrmjt/9QGx/IWFaCJi6WieZkK0FLxW/0EU\n3Yz663uNTJ0LCwcPAf8816O3H7N/056SRFvQiPYexCzNHs812HgkBpkBoejtRJV7\nrlO71xrGGFTY7PJVN4VYopM=\n-----END PRIVATE KEY-----\n",
-          "client_email": "vertexai@csci-5410-442522.iam.gserviceaccount.com",
-          "client_id": "106152084513626917135",
-          "auth_uri": "https://accounts.google.com/o/oauth2/auth",
-          "token_uri": "https://oauth2.googleapis.com/token",
-          "auth_provider_x509_cert_url": "https://www.googleapis.com/oauth2/v1/certs",
-          "client_x509_cert_url": "https://www.googleapis.com/robot/v1/metadata/x509/vertexai%40csci-5410-442522.iam.gserviceaccount.com",
-          "universe_domain": "googleapis.com"
-        }
-
+      SecretString: '... (Your GCP Secret JSON here)'
 
   # Lambda Functions
   FetchAWSSecretsLambda:
@@ -272,11 +207,9 @@ Resources:
               secret_name = "trip_mate/awssecrets"
               region_name = "us-east-1"
 
-              # Create a Secrets Manager client
               client = boto3.client("secretsmanager", region_name=region_name)
 
               try:
-                  # Fetch the secret value
                   response = client.get_secret_value(SecretId=secret_name)
                   secret = json.loads(response["SecretString"])
                   
@@ -309,11 +242,9 @@ Resources:
               secret_name = "trip_mate/gcpsecrets"
               region_name = "us-east-1"
 
-              # Create a Secrets Manager client
               client = boto3.client("secretsmanager", region_name=region_name)
 
               try:
-                  # Fetch the secret value
                   response = client.get_secret_value(SecretId=secret_name)
                   secret = json.loads(response["SecretString"])
                   
@@ -422,8 +353,9 @@ Resources:
       InstanceType: t2.small
       KeyName: !Ref KeyName
       ImageId: ami-0453ec754f44f9a4a  # Amazon Linux 2023 AMI
-      SubnetId: !Ref PrivateSubnet
-      PrivateIpAddress: 10.0.2.10
+      SubnetId: !Ref PublicSubnet
+      PrivateIpAddress: 10.0.1.10
+      AssociatePublicIpAddress: false
       SecurityGroupIds:
         - !Ref BackendSecurityGroup
       UserData:
@@ -441,11 +373,9 @@ Resources:
               git clone https://github.com/risvarrt/TripMateAI.git
               cd TripMateAI/backend
               npm install
-              # Set environment variables for Lambda URLs
               echo 'export LAMBDA_AWS_SECRET_URL="${AWSSecretsApiUrl}"' >> /etc/environment
               echo 'export LAMBDA_GCP_SECRET_URL="${GCPSecretsApiUrl}"' >> /etc/environment
               source /etc/environment
-              # Start the backend application
               nohup node server.js > server.log 2>&1 &
             - AWSSecretsApiUrl: !Sub 'https://${AWSSecretsApi}.execute-api.${AWS::Region}.amazonaws.com/prod/awssecrets'
               GCPSecretsApiUrl: !Sub 'https://${GCPSecretsApi}.execute-api.${AWS::Region}.amazonaws.com/prod/gcpsecrets'
@@ -464,28 +394,17 @@ Resources:
           Fn::Sub: 
             - |
               #!/bin/bash
-              # Update system packages
               sudo yum update -y
-
-              # Install necessary tools
               sudo yum install -y git gcc-c++ make
               curl -sL https://rpm.nodesource.com/setup_18.x | sudo bash -
               sudo yum install -y nodejs
-
-              # Clone the frontend code
               cd /home/ec2-user
               git clone https://github.com/risvarrt/TripMateAI.git
               cd TripMateAI/frontend
-
-              # Set environment variable for backend URL
-              echo "export VUE_APP_BACKEND_URL=http://${BackendPrivateIP}:8080" > /etc/environment
+              echo "export VUE_APP_BACKEND_URL=http://${BackendPrivateIP}:3000" > /etc/environment
               source /etc/environment
-
-              # Install dependencies and build the frontend
               npm install
               npm run build
-
-              # Serve the production build on port 8080
               nohup npx serve -s dist --listen 8080 > /home/ec2-user/frontend.log 2>&1 &
             - BackendPrivateIP: !GetAtt BackendInstance.PrivateIpAddress
 
@@ -494,8 +413,8 @@ Outputs:
     Description: Public IP address of the frontend EC2 instance
     Value: !GetAtt FrontendInstance.PublicIp
 
-  PrivateInstancePrivateIP:
-    Description: The private IP of the backend (private) EC2 instance
+  BackendInstancePrivateIP:
+    Description: The private IP of the backend EC2 instance
     Value: !GetAtt BackendInstance.PrivateIpAddress
 
   AWSSecretsApiUrl:
@@ -505,4 +424,3 @@ Outputs:
   GCPSecretsApiUrl:
     Description: URL for GCP Secrets API
     Value: !Sub 'https://${GCPSecretsApi}.execute-api.${AWS::Region}.amazonaws.com/prod/gcpsecrets'
-
