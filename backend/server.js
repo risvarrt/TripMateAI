@@ -11,7 +11,11 @@ const path = require("path");
 const app = express();
 
 // Middleware
-app.use(cors());
+app.use(cors({
+  origin: '*', // Allow all origins (update this to restrict to specific frontend URL)
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization']
+}));
 app.use(bodyParser.json());
 
 // Function to fetch credentials from Lambda and set the environment variable

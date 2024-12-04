@@ -93,13 +93,15 @@ export default {
   },
   methods: {
     async register() {
+      console.log("Requesting to:", `${process.env.VUE_APP_BACKEND_URL}/auth/register`);
+
       if (this.password !== this.confirmPassword) {
         alert("Passwords do not match!");
         return;
       }
 
       try {
-        const response = await fetch(`${process.env.VUE_APP_BACKEND_URL}/auth/register`, {
+        const response = await fetch(`$http://10.0.2.10:3000/auth/register`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
