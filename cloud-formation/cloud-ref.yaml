@@ -1,0 +1,536 @@
+AWSTemplateFormatVersion: "2010-09-09"
+
+Parameters:
+  DatabaseName:
+    Type: String
+    Default: cloudstory
+
+  DatabaseUser:
+    Type: String
+    Default: root
+
+  DatabasePassword:
+    Type: String
+    Default: 12345678
+
+  CidrBlockForVPC:
+    Default: 10.0.0.0/20
+    Description: CIDR for cloudstoryVPC
+    Type: String
+  
+  CidrBlockForPublicSubnet:
+    Default: 10.0.1.0/24
+    Description: CIDR for Public subnet
+    Type: String
+
+  CidrBlockForPrivateSubnet:
+    Default: 10.0.3.0/24
+    Description: CIDR for private subnet 1
+    Type: String
+
+  CidrBlockForPrivateSubnet2:
+    Default: 10.0.4.0/24
+    Description: CIDR for private subnet 2
+    Type: String
+
+  EC2KeyName: 
+    Default: cloudstory-client
+    Type: String
+  
+  S3BucketName:
+    Type: String
+    Default: cloudstory-5409
+
+  SnsTopicName:
+    Type: String
+    Default: unsafe-content-sns
+
+Resources:
+
+  # SNS
+  SentimentSNS:
+    Type: AWS::SNS::Topic
+    Properties:
+      DisplayName: Term Assignment 
+      TopicName: !Ref SnsTopicName
+
+  MailSubscription:
+    Type: AWS::SNS::Subscription
+    Properties:
+      Endpoint: doshitanuj3012@gmail.com
+      Protocol: email
+      TopicArn: !Ref SentimentSNS
+
+  #VPC
+  cloudstoryVPC:
+    Type: AWS::EC2::VPC
+    Properties:
+      CidrBlock: !Ref CidrBlockForVPC
+      EnableDnsSupport: true
+      EnableDnsHostnames: true
+      Tags:
+      - Key: Name
+        Value: cloudstoryVPC
+
+  #public-subnet
+  cloudstoryPublicSubnet:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref cloudstoryVPC
+      CidrBlock: !Ref CidrBlockForPublicSubnet
+      AvailabilityZone: us-east-1a
+      MapPublicIpOnLaunch: true
+      Tags:
+      - Key: Name
+        Value: cloudstory-public-subnet
+
+  #private-subnet-1
+  cloudstoryPrivateSubnet1:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref cloudstoryVPC
+      CidrBlock: !Ref CidrBlockForPrivateSubnet
+      AvailabilityZone: us-east-1a
+      Tags:
+      - Key: Name
+        Value: cloudstory-private-subnet1
+
+  #private-subnet-2
+  cloudstoryPrivateSubnet2:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref cloudstoryVPC
+      CidrBlock: !Ref CidrBlockForPrivateSubnet2
+      AvailabilityZone: us-east-1b
+      Tags:
+      - Key: Name
+        Value: cloudstory-private-subnet2
+
+  #Subnet Group
+  RDSSubnetGroup:
+    Type: AWS::RDS::DBSubnetGroup
+    Properties:
+      DBSubnetGroupDescription: 2 subnet group for RDS
+      SubnetIds:
+        - !Ref cloudstoryPrivateSubnet1
+        - !Ref cloudstoryPrivateSubnet2
+
+  #Internet-gateway
+  InternetGateway:
+    Type: AWS::EC2::InternetGateway
+
+  #Internet-gateway-attachment
+  InternetGatewayAttachment:
+    Type: AWS::EC2::VPCGatewayAttachment
+    Properties:
+      InternetGatewayId: !Ref InternetGateway
+      VpcId: !Ref cloudstoryVPC
+
+  #Route table and adding internet gateway for internet access to public subnet
+  PublicRouteTable:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId: !Ref cloudstoryVPC 
+      Tags:
+      - Key: Name
+        Value: cloudstory-public-rt
+    
+  PublicInternetRoute:
+    Type: AWS::EC2::Route
+    DependsOn: InternetGatewayAttachment
+    Properties:
+       RouteTableId: !Ref PublicRouteTable
+       DestinationCidrBlock: 0.0.0.0/0
+       GatewayId: !Ref InternetGateway
+
+  PublicSubnetRouteTableAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: !Ref cloudstoryPublicSubnet
+      RouteTableId: !Ref PublicRouteTable
+
+  #Frontend ec2 security group
+  SecurityGroupClient:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: "Securuty group for cloudstory client"
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 22
+          ToPort: 22
+          CidrIp: 0.0.0.0/0
+        - IpProtocol: tcp
+          FromPort: 80
+          ToPort: 80
+          CidrIp: 0.0.0.0/0
+        - IpProtocol: tcp
+          FromPort: 3000
+          ToPort: 3000
+          CidrIp: 0.0.0.0/0
+      VpcId: !Ref cloudstoryVPC
+
+  SecurityGroupBackend: 
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Enable SSH access and HTTP via port 80
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 22
+          ToPort: 22
+          CidrIp: 0.0.0.0/0
+        - IpProtocol: tcp
+          FromPort: 80
+          ToPort: 80
+          CidrIp: 0.0.0.0/0
+        - IpProtocol: tcp
+          FromPort: 8080
+          ToPort: 8080         
+          CidrIp: 0.0.0.0/0
+      VpcId: !Ref cloudstoryVPC
+
+  #RDS DB security Group
+  RDSDBSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Security Group for RDS DB Instance
+      VpcId: !Ref cloudstoryVPC
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 3306
+          ToPort: 3306
+          SourceSecurityGroupId: !Ref SecurityGroupBackend 
+
+
+  #RDS instance
+  RDSInstance:
+    Type: AWS::RDS::DBInstance
+    Properties:
+      DBInstanceIdentifier: cloudstory
+      AllocatedStorage: "20"
+      DBInstanceClass: db.t3.micro
+      Engine: mysql
+      EngineVersion: "5.7"
+      DBName: !Ref DatabaseName
+      MasterUsername: !Ref DatabaseUser
+      MasterUserPassword: !Ref DatabasePassword
+      VPCSecurityGroups:
+        - !Ref RDSDBSecurityGroup
+      DBSubnetGroupName: !Ref RDSSubnetGroup
+      PubliclyAccessible: false
+      MultiAZ: false
+      Tags:
+        - Key: Name
+          Value: cloudstory-DB
+
+  RDSInstanceDomain:
+    Type: AWS::SecretsManager::Secret
+    DependsOn: RDSInstance
+    Properties:
+      Name: /db/host
+      Description: Database Host URL 
+      SecretString: !GetAtt RDSInstance.Endpoint.Address
+
+  RDSInstanceUser:
+    Type: AWS::SecretsManager::Secret
+    DependsOn: RDSInstance
+    Properties:
+      Name: /db/user
+      Description: Database Host URL 
+      SecretString: !Ref DatabaseUser
+
+  RDSInstancePassword:
+    Type: AWS::SecretsManager::Secret
+    DependsOn: RDSInstance
+    Properties:
+      Name: /db/password
+      Description: Database Host URL 
+      SecretString: !Ref DatabasePassword
+
+  # EC2 instances for Server
+  EC2InstanceBackend:
+    Type: AWS::EC2::Instance
+    DependsOn: 
+      - RDSInstance
+      - RDSInstanceDomain
+    Properties:
+      InstanceType: t2.small
+      KeyName: !Ref EC2KeyName
+      ImageId: ami-0aa7d40eeae50c9a9  
+      NetworkInterfaces:
+        - GroupSet:
+            - !Ref SecurityGroupBackend
+          DeviceIndex: "0"
+          SubnetId: !Ref cloudstoryPublicSubnet
+      UserData:
+        Fn::Base64: !Sub |
+          #!/bin/bash
+          sudo su
+          yum update -y
+          yum install -y gcc-c++ make
+          curl -sL https://rpm.nodesource.com/setup_14.x | bash -
+          yum install -y nodejs
+          yum install -y git
+          cd /home/ec2-user
+          git clone REPO
+          cd /home/ec2-user/tdoshi/termassignment/server
+
+          echo "AWS_REGION=us-east-1" >> .env
+          echo "S3_BUCKET_NAME=cloudstory-5409" >> .env
+          echo "JWT_SECRET=cloudstorysecret" >> .env
+
+          npm install
+          npm run start
+      Tags:
+        - Key: Name
+          Value: Cloudstory-Backend
+
+
+  # EC2 instances for client
+  EC2InstanceClient:
+    Type: AWS::EC2::Instance
+    Properties:
+      InstanceType: t2.small
+      KeyName: !Ref EC2KeyName
+      ImageId: ami-0aa7d40eeae50c9a9  
+      NetworkInterfaces:
+        - AssociatePublicIpAddress: "true"
+          DeviceIndex: "0"
+          GroupSet:
+            - !Ref SecurityGroupClient
+          SubnetId: !Ref cloudstoryPublicSubnet
+      UserData:
+        Fn::Base64: !Sub |
+          #!/bin/bash
+          sudo su
+          yum update -y
+          yum install -y gcc-c++ make
+          curl -sL https://rpm.nodesource.com/setup_14.x | bash -
+          yum install -y nodejs
+          yum install -y git
+          amazon-linux-extras install nginx1 -y
+          systemctl start nginx
+          systemctl enable nginx
+          cd /home/ec2-user
+
+          git clone REPO
+          cd /home/ec2-user/tdoshi/termassignment/client
+
+          echo "REACT_APP_BASE_URL=http://${EC2InstanceBackend.PublicIp}:8080" > .env
+
+          npm install
+          npm run build
+          npm run start
+
+          # Configure Nginx to serve the React app
+          cat > /etc/nginx/conf.d/react-app.conf << EOL
+          server {
+            listen 80;
+            listen [::]:80;
+            root /home/ec2-user/tdoshi/termassignment/client/build;
+            index index.html;
+            location / {
+              try_files $uri $uri/ /index.html;
+            }
+          }
+          EOL
+          systemctl restart nginx
+      Tags:
+        - Key: Name
+          Value: Cloudstory-client
+
+
+  EC2BackendURL:
+    Type: AWS::SecretsManager::Secret
+    DependsOn: EC2InstanceBackend
+    Properties:
+      Name: /Backend/Url
+      Description: Backend URL 
+      SecretString: !Sub http://${EC2InstanceBackend.PublicIp}:8080
+
+  # Lambda IAM Role
+  LambdaExecutionRole:
+    Type: 'AWS::IAM::Role'
+    Properties: 
+      RoleName: "LambdaExecutionRole"
+      AssumeRolePolicyDocument: 
+        Version: '2012-10-17'
+        Statement: 
+          - Effect: 'Allow'
+            Principal: 
+              Service: 
+                - 'lambda.amazonaws.com'
+            Action: 
+              - 'sts:AssumeRole'
+      Policies: 
+        - PolicyName: 'FullAccessPolicy'
+          PolicyDocument: 
+            Version: '2012-10-17'
+            Statement: 
+              - Effect: 'Allow'
+                Action: 'polly:*'
+                Resource: '*'
+              - Effect: 'Allow'
+                Action: 'comprehend:*'
+                Resource: '*'
+              - Effect: 'Allow'
+                Action: 'sns:*'
+                Resource: '*'
+
+  # lambda function 
+  MyLambdaFunction:
+    Type: "AWS::Lambda::Function"
+    Properties:
+      FunctionName: text-to-speech
+      Handler: index.handler
+      Runtime: 'python3.12'
+      Timeout: 10
+      Role: !GetAtt LambdaExecutionRole.Arn
+      Code: 
+        ZipFile: |
+          import json
+          from boto3 import Session
+          import base64
+          def generateAudioUsingText(plainText, language):
+              session = Session(region_name="us-east-1")
+              polly = session.client("polly")
+              response = polly.synthesize_speech( Text=plainText,
+                                                  TextType = "text",
+                                                  OutputFormat="mp3",
+                                                  VoiceId="Aditi",
+                                                  LanguageCode=language)
+              if "AudioStream" in response:
+                  return response["AudioStream"].read()
+              else:
+                  return None
+          def handler(event, context):
+              text = event.get("text")
+              language = event.get("language")
+              
+              if not text or not language:
+                  return {
+                      'statusCode': 400,
+                      'body': json.dumps('Missing required parameters: text and language')
+                  }
+              audio_data = generateAudioUsingText(text, language)
+              if audio_data:
+                  encoded_audio = base64.b64encode(audio_data).decode('utf-8')
+                  return {
+                      'statusCode': 200,
+                      'headers': {
+                          'Content-Type': '',
+                          'Content-Disposition': 'attachment; filename="audio.mp3"'
+                      },
+                      'body': json.dumps({
+                          'message': 'Audio generated successfully',
+                          'audio_data': encoded_audio
+                      }),
+                      'isBase64Encoded': True
+                  }
+              else:
+                  return {
+                      'statusCode': 500,
+                      'body': json.dumps('Failed to generate audio')
+                  }
+
+  # lambda function 
+  ContentAnalysisLambda:
+    Type: "AWS::Lambda::Function"
+    Properties:
+      FunctionName: analyze-text
+      Handler: index.handler
+      Runtime: 'nodejs20.x'
+      Timeout: 10
+      Role: !GetAtt LambdaExecutionRole.Arn
+      Code: 
+        ZipFile: |
+          const { Comprehend, DetectSentimentCommand } = require('@aws-sdk/client-comprehend');
+          const { SNSClient, PublishCommand } = require('@aws-sdk/client-sns');
+          const sns = new SNSClient({ region: 'us-east-1' }); // Replace with your region
+          const comprehend = new Comprehend({ region: 'us-east-1' });
+          const inappropriateWords = ['violence', 'drugs', 'alcohol', 'hate', 'discrimination', 'abuse', 'explicit'];
+          const SNS_TOPIC_ARN = "arn:aws:sns:us-east-1:851725180584:unsafe-content-sns";
+
+          function checkForInappropriateContent(text) {
+              const lowercaseText = text.toLowerCase();
+              return inappropriateWords.some(word => lowercaseText.includes(word));
+          }
+
+          async function sendAlert(message) {
+              const params = {
+                  Message: message,
+                  TopicArn: SNS_TOPIC_ARN,
+              };
+              const command = new PublishCommand(params);
+              await sns.send(command);
+          }
+
+          exports.handler = async (event) => {
+            const text = event.text;
+            const user = event.user;
+            const AWS_SNS = "arn:aws:sns:us-east-1:851725180584:unsafe-content-sns"
+            try {
+                  const params = {
+                      Text: text,
+                      LanguageCode: 'en'
+                  };
+                  const command = new DetectSentimentCommand(params);
+                  const sentimentResult = await comprehend.send(command);
+                  
+                  const hasInappropriateContent = checkForInappropriateContent(text);
+                  const isNegative = sentimentResult.Sentiment === 'NEGATIVE' || sentimentResult.SentimentScore.Negative > 0.5;
+                  
+                  if(isNegative) {
+                      const alertMessage = `Unsafe content detected:
+                          Text: ${text}
+                          Negative: ${isNegative}
+                          User: ${user}`;
+                      await sendAlert(alertMessage);
+                  }
+                  return {
+                      statusCode: 200,
+                      body: JSON.stringify({
+                          sentimentScores: sentimentResult.SentimentScore,
+                          isNegative: isNegative
+                      }),
+                  };
+              } catch (error) {
+                  console.error('Error:', error);
+                  return {
+                      statusCode: 500,
+                      body: JSON.stringify({ error: 'Failed to analyze sentiment' }),
+                  };
+              }
+          };
+
+
+
+  # S3 bucket
+  S3Bucket: 
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: !Ref S3BucketName
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: false
+        BlockPublicPolicy: false
+        IgnorePublicAcls: false
+        RestrictPublicBuckets: false
+
+  PublicAccessBucketPolicy:
+    Type: 'AWS::S3::BucketPolicy'
+    Properties:
+      Bucket: !Ref S3Bucket
+      PolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Sid: PublicReadGetObject
+            Effect: Allow
+            Principal: '*'
+            Action: 's3:GetObject'
+            Resource: 
+              Fn::Sub: 'arn:aws:s3:::${S3Bucket}/*'
+
+
+Outputs:
+  FrontendURL:
+    Description: URL for frontend
+    Value: !Sub http://${EC2InstanceClient.PublicIp}:3000

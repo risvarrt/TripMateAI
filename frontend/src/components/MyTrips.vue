@@ -53,7 +53,8 @@ export default {
   async mounted() {
     const userEmail = localStorage.getItem("email");
     try {
-      const response = await fetch(`http://localhost:3000/trips/${userEmail}`);
+      const response = await fetch(`${process.env.VUE_APP_BACKEND_URL}/trips/${userEmail}`);
+      
       const data = await response.json();
 
       // Fetch images for each trip using a public API (e.g., Unsplash)

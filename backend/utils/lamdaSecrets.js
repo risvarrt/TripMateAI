@@ -1,8 +1,9 @@
 const axios = require("axios");
-
+require("dotenv").config();
 // API Gateway URLs for the Lambda functions
-const AWS_SECRET_URL = "https://coukpy0vw7.execute-api.us-east-1.amazonaws.com/dev/getawssecrets";
-const GCP_SECRET_URL = "https://coukpy0vw7.execute-api.us-east-1.amazonaws.com/dev/getgcpsecrets";
+const AWS_SECRET_URL = process.env.LAMBDA_AWS_SECRET_URL;
+const GCP_SECRET_URL = process.env.LAMBDA_GCP_SECRET_URL;
+
 
 const fetchAWSSecret = async () => {
   try {
