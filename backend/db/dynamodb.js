@@ -7,9 +7,6 @@ let dynamoDB;
   const awsSecrets = await fetchAWSSecret();
   AWS.config.update({
     region: awsSecrets.REGION,
-    accessKeyId: awsSecrets.ACCESS_KEY_ID,
-    secretAccessKey: awsSecrets.SECRET_ACCESS_KEY,
-    sessionToken: awsSecrets.SESSION_TOKEN,
   });
   dynamoDB = new AWS.DynamoDB.DocumentClient();
 })();
@@ -18,7 +15,7 @@ let dynamoDB;
 exports.saveTripToDynamoDB = async (tripDetails) => {
   const trip_id = `trip-${Date.now()}`; // Generate a unique trip_id
   const params = {
-    TableName: "trips", // Ensure this matches your table name
+    TableName: "trips", 
     Item: { ...tripDetails, trip_id }, // Use trip_id as the primary key
   };
 
