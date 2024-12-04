@@ -95,17 +95,17 @@ Resources:
   BackendSecurityGroup:
     Type: AWS::EC2::SecurityGroup
     Properties:
-      GroupDescription: Allow traffic from the frontend instance and SSH access
+      GroupDescription: Allow HTTP and SSH access to the backend instance
       VpcId: !Ref TripMateVPC
       SecurityGroupIngress:
         - IpProtocol: tcp
-          FromPort: 3000
-          ToPort: 3000
-          SourceSecurityGroupId: !Ref FrontendSecurityGroup
-        - IpProtocol: tcp
           FromPort: 22
           ToPort: 22
-          SourceSecurityGroupId: !Ref FrontendSecurityGroup
+          CidrIp: 0.0.0.0/0
+        - IpProtocol: tcp
+          FromPort: 3000
+          ToPort: 3000
+          CidrIp: 0.0.0.0/0
       Tags:
         - Key: Name
           Value: TripMateBackendSG
@@ -179,7 +179,10 @@ Resources:
           "USER_POOL_ID": "${CognitoUserPool}",
           "CLIENT_ID": "${CognitoUserPoolClient}",
           "CLIENT_SECRET": "${CognitoUserPoolClient.ClientSecret}",
-          "BUCKET_NAME": "${TripItineraryBucket}"
+          "BUCKET_NAME": "${TripItineraryBucket}",
+          "aws_access_key_id": "ASIAUKHE74AQV6LYJVCW",
+          "aws_secret_access_key": "tsVWOGY/ZdG38B88pc5fkWpi2HsWKjl+oxGnvcjt",
+          "aws_session_token": "IQoJb3JpZ2luX2VjEEYaCXVzLXdlc3QtMiJIMEYCIQCbStU20sGmhJ4MPsp6FT8lPKnhuNl5GauOIsAMir6KigIhAJmiEoK4n4UIVqVbBQqw4DU7a+Sd2rDfzFcu8vFOllJjKsQCCO///////////wEQABoMMjk2ODMyOTgzMDczIgx/NVFRkBg2JfSwFBYqmAKatp+iDwhbFBW3SzJuv3RVcc28bwzlqfRDtIyYhldPqs1cb868s86xGuf55WKMK1/2rOTeD8hgwSXrpss6NmTE0zJAJz5pI96mOiOGdiiWDTMUwgth5CdqkrAbXXMtQyFG4VAWmtpJ/1d3GFw5+GfyovOe5cwp5YpyZTFnXw/UHXPtmVAKONGc7vOWJwdYDbpgdtJYoETXKyqTW1z8bBgcRnH8HbxPYP2IYPLI3IzXqnFpU5Hk6EPc0YAxUq8RsHpeztelsbdyD9uZ3JmiDKIAQco/pkepbz8dx+UdU7brHjS7gVEg8efPkT7Xv1PfbWRE9uXnw2lw9/0V32d30dcOBGKPw798pIJ2pto394HGBzopmt/BMh7sML63wboGOpwBjBphh4TzYdN98WcRE0lA3xjX/Jd85AO/pab235Mw7KozF0HMLkTPaXsFlHDMuBJBS5PZQIsoTx2GdRI1zgR8cYdMhlKP/NacvHZ0sx7ddhGr2kXFxqc9d+7nO8J1LFKrbGOoHkfd8bC0LjiBc9dsIn8MemIlFaJbMNDNBASQBoH46dlK1YC+TogCHNVaEymFwhmVBs9gH23ESzno"
         }
 
   # Secrets Manager Secret for GCP Secrets
@@ -367,13 +370,10 @@ Resources:
       InstanceType: t2.small
       KeyName: !Ref KeyName
       ImageId: ami-0453ec754f44f9a4a  # Amazon Linux 2023 AMI
-      NetworkInterfaces:
-        - DeviceIndex: 0
-          SubnetId: !Ref PublicSubnet
-          PrivateIpAddress: 10.0.1.10
-          AssociatePublicIpAddress: false
-          GroupSet:
-            - !Ref BackendSecurityGroup
+      SubnetId: !Ref PublicSubnet
+      SecurityGroupIds:
+        - !Ref BackendSecurityGroup
+      # By default, since MapPublicIpOnLaunch is true, this instance will get a public IP and DNS
       UserData:
         Fn::Base64:
           Fn::Sub:
@@ -402,12 +402,9 @@ Resources:
       InstanceType: t2.small
       KeyName: !Ref KeyName
       ImageId: ami-0453ec754f44f9a4a # Amazon Linux 2023 AMI
-      NetworkInterfaces:
-        - AssociatePublicIpAddress: "true"
-          DeviceIndex: "0"
-          SubnetId: !Ref PublicSubnet
-          GroupSet:
-            - !Ref FrontendSecurityGroup
+      SubnetId: !Ref PublicSubnet
+      SecurityGroupIds:
+        - !Ref FrontendSecurityGroup
       UserData:
         Fn::Base64:
           Fn::Sub: 
@@ -420,20 +417,25 @@ Resources:
               cd /home/ec2-user
               git clone https://github.com/risvarrt/TripMateAI.git
               cd TripMateAI/frontend
-              echo "export VUE_APP_BACKEND_URL=http://${BackendInstance.PublicIp}:8080" > /etc/environment
+              echo "export VUE_APP_BACKEND_URL=http://${BackendPublicDNS}:8080" > /etc/environment
               source /etc/environment
               npm install
               npm run build
               nohup npx serve -s dist --listen 8080 > /home/ec2-user/frontend.log 2>&1 &
+            - BackendPublicDNS: !GetAtt BackendInstance.PublicDnsName
 
 Outputs:
   FrontendPublicIP:
     Description: Public IP address of the frontend EC2 instance
     Value: !GetAtt FrontendInstance.PublicIp
 
-  BackendInstancePrivateIP:
-    Description: The private IP of the backend EC2 instance
-    Value: !GetAtt BackendInstance.PrivateIpAddress
+  BackendPublicIP:
+    Description: Public IP address of the backend EC2 instance
+    Value: !GetAtt BackendInstance.PublicIp
+
+  BackendPublicDNS:
+    Description: Public DNS name of the backend EC2 instance
+    Value: !GetAtt BackendInstance.PublicDnsName
 
   AWSSecretsApiUrl:
     Description: URL for AWS Secrets API
