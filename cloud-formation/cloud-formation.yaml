@@ -128,11 +128,11 @@ Resources:
         - IpProtocol: tcp
           FromPort: 22
           ToPort: 22
-          CidrIp: 0.0.0.0/0
+          CidrIp: 0.0.0.0/0 
         - IpProtocol: tcp
           FromPort: 8080
           ToPort: 8080
-          CidrIp: 0.0.0.0/0
+          CidrIp: 0.0.0.0/0 # Allow HTTP traffic to the frontend
         - IpProtocol: tcp
           FromPort: 443
           ToPort: 443
@@ -144,16 +144,22 @@ Resources:
   BackendSecurityGroup:
     Type: AWS::EC2::SecurityGroup
     Properties:
-      GroupDescription: Allow inbound traffic from frontend to backend instance
+      GroupDescription: Allow traffic from the frontend instance and SSH access
       VpcId: !Ref TripMateVPC
       SecurityGroupIngress:
         - IpProtocol: tcp
           FromPort: 3000
           ToPort: 3000
-          SourceSecurityGroupId: !Ref FrontendSecurityGroup
+          SourceSecurityGroupId: !Ref FrontendSecurityGroup  # Allow frontend instance to access backend
+        - IpProtocol: tcp
+          FromPort: 22
+          ToPort: 22
+          SourceSecurityGroupId: !Ref FrontendSecurityGroup  # Allow SSH from the frontend instance
       Tags:
         - Key: Name
           Value: TripMateBackendSG
+
+
 
   # Cognito User Pool
   CognitoUserPool:
@@ -236,17 +242,18 @@ Resources:
       SecretString: !Sub |
         {
           "type": "service_account",
-          "project_id": "csci-5409-441200",
-          "private_key_id": "3e876002605790fe44d7b8419a162a90d54ad676",
-          "private_key": "-----BEGIN PRIVATE KEY-----\nMIIEvgIBADANBgkqhkiG9w0BAQEFAASCBKgwggSkAgEAAoIBAQDGluxE8g99C8x2\nybtOBUIQe2KbQ3gHUNsSgvg6K6XuOj68A1R7os/QlLOafwt3Rfg0w5s6oKkTNX+o\nihzXgOhJOviYQTpK3O7JRORCZGyaI++FrpZqr9ajetn+3+M3EltW1tWJyj1LiV0E\nP1ii3Bl0N+jEaBDqrgK8uyoeyrxGdFOUogAuURFX5wHiHTOspSQ9+8c1cjb98fXg\nr42aGUVKLhS84ZsT3Rptl7qOMn/rqHi6S85k9Vp5UHXfYZ3Q1WGGqDSO5QnKn0KC\nUK0kNk5zJTWSTywW8jAEmA/sUVZlLXoC6NWGjUZjfAgJzs1Qv6wPem09qSp3Kl15\n35Co/saJAgMBAAECggEAFUqPToWGwlT6YQZ4G9Ftv7Ng0y1owB0Lvch3qVHubnQF\nb5YqT76ZCf91YZQrJCim565MlVyt/+KZmxXiqXq3PMmzJyzAHZBiFAdcMx+N8rk1\nWAdrtki/qgOU/XHezBPeYdky5/zcNT3nEHpjrANNwdNwM+WF4clR/w7QgWBiTum/\nuv1lS4Fwn8de3GsOA8NixcLsJbfozKpswQQAITU9/Izml73OIXOZy4uQwBrclgP9\nth28hId2BbUWVRNR0Vv469e7xBZIood4ThI+vdTObFeGIjaCbccGP8f3x0GK9zGb\nuqwfUCMnihDIfHvvT27juYogfje9060edEbTbgY3wQKBgQDrejAVe7U8Sm6oowt5\nuJDQQ43HlNtYAOr2cCSqK1MQkvYXUnt0/GnCM8mZTemc4aNe9ICpXqFK63vPZ3ZM\nCaaP/gFFAx/hxdF4jcvU/zfE9j8R9kl68/FFVb9HxWcFdxCvJ1maKxtv2qTYAqq0\nWmS3ZLXAZOzHuEETUmxhWSH/QQKBgQDX5bhdka1nBcqz8qEAZqQfi0xlWv0rGw8i\neSU32iZ9X3nI5lQ1qr2oITLyMdt1hJviXbUm2IpfgwF3pjCKAx/sx5T3FdS7okzh\nvZe12kZ0Dygc9fDpAv91WW7FHFeddLvk4ATcLDIA5kFOAzfVhwvWeGTzzstix9bx\n4xbaaFq9SQKBgQDLDqjcPbtBbGYUYdUJd9DY5wgh7Qlg0BnNvVLAs2+DwVcZMXVo\noimI4COeYYNsV18MCQfSBdpMwtgXN/7Y/xF05fKuUk1x4aYKsSvuVs7+t+IXWSxw\nLGAIDDNQbreyDMSEZghsW3PjdsXjyBjwQWrMgroAWIeeihMD2HXBVJ1ugQKBgCxU\nxjuoWxPJc6rpije7272Ca+hv+4YrYzsv5v2F9NtPjIE9ElOGwLTSRFTI+ggyd5PO\nrBDS6+7axqVb4aGlLJwBC0yFFg6FMAY2WP2FWWwhZJo1wgcGj4/4Ei+1NyRkwOQp\nP7Y5+PaIUSaEsKVOupaKWChb8RVSdYdrmti0DtXJAoGBALEuD+GAPE83cIJlXwO8\nRw8Y7LzkpPGa1yqqjJuWHDCxgD/6ZUHT5xrgWnTPbYmqWL0zfmDj4AUTb9b69yFC\nmqelIUhS1YgE/IhBvHGoMRRoLxlMB+qc3ghL1q1Ahjpv/2GPAhFBlcaA7k+OXmRR\nIsuh2ulL3B4DbEl+qc6GIYhj\n-----END PRIVATE KEY-----\n",
-          "client_email": "vertex@csci-5409-441200.iam.gserviceaccount.com",
-          "client_id": "114619192574527969983",
+          "project_id": "csci-5410-442522",
+          "private_key_id": "5d8e4d397150aaf78daf97bff4d8435c190735a2",
+          "private_key": "-----BEGIN PRIVATE KEY-----\nMIIEvQIBADANBgkqhkiG9w0BAQEFAASCBKcwggSjAgEAAoIBAQCqiKjgeXlaq77Q\nhil4dsV16grfL1cOnxjKdn7+toZzsSS6bmaclTZqh+Ee07zUJLaZS1jPrlotxuL0\ndZtLXIWoZyU9fSb+AHyWJ6QVenTtKSPN/5MdU7YztT333W6mAllxRvtcpZ0gC2+O\naxb9o9y0akf6n305dQ3U7w03zxOs4puWY7MZIjw/znX7+tpP0ldVbgtblXY7uGEv\nMDj2vf8Tb94WFhC/K0sn34v9sApif8jjxnrO/FY9nr/q77EcUNlZ1AOjTcXNMn/k\nE5Xx08vaW8J7QjOC0f5Dm1iIjqlwwpUNx04+e0CGjAdLaZpgEDGhK1El/TjfOldN\n4ySalbm/AgMBAAECggEAEGRVc0pJ32zNySZ0OweToGtwQxa+VAH39JIiT+KElv9K\ni/8LrvZqxh+shHWO24dx49dJwKC+O1M4Qo5BcKOCl3bergPnKRgr4ZUK4SOltJw1\nPFpaLkH7LAo6XCZ1OdDU/x33EGc87LUcsoBZs+S51L+4jn8hHtJBE5ws1ZX6iq4P\nYOypY1atYcQo7MNga8o6jAqqr/I5KMv4iO226sT1DMIzoBPLlIYiUNaNmrj759Op\nvoygVQEK8uAV8xYldUrJXt7eCTZfm9+yctg5e+EHQAemIPySkzWpixrmP1XSNPb5\nhcrN/LNqXcQZvoiTeKFOWffVZ7h0kJbABKB4EAjvOQKBgQDUpLCJ2nYV3YnUhqo8\nUyLe/lGPha8CdreDHtRz0QqEiHWHnwxRkva0831BdIWldlXgUN/HVlnuLjL5YVsY\nEjEOr2Jd5G1PymDtnppqt1EFE8FqLZcj43txE4yiZkE8B2fHcjltkNps6qdmfHwT\nehI7qSoxsBcRpKK1adUD5ROQmQKBgQDNTfzI5Epiy3VOs6lx07IeQT0/xI0lRrHa\neLUEix5iefC2E0EcHpU7EyCAFe67cuWNX4oxcbXvXkcluav7tiKw0ES0mHo5AMts\nAkVnH/50EyYiOpSV64ZkhLWESCI/ZcVq989QZGwtWdZNg9X6GWNVWw1mmG1Dc0UN\nI9EkfPscFwKBgCtlnP3VTuoxd1KfVRjQoro9zulqkAgBsHwbC6LDU9EuhEX0aLAx\nPRY65yI3pJrbJrWL68+jyOC6Hv8UJmIoPEjR9FJTLxfsppF4H+2NkgRmPr/ro//Y\nCjZOlhICqmeU31It9phsypcV4Koi17Ol4xi38nuHg32/StGZUrbjxnVpAoGASYBd\nOvL4aqxawCV0SYs33rsOmZDd03We4Q+MBydjZnAvrI/yJIYSeUbcwN6ZTMTSyC1n\nRVJnh14ibLAvkXtgqhq2Lk3UnCnbqjyZ6lS6/YWJhoGghpf+0mfssII+uKHP7v7v\nWuHJFOdv4OqNJfAG7x0dDBkQLTDMjOrAyqZwJFsCgYEApJZg3jBJuw/Kv0QS2A3L\niyqUUjOUSp1R+4td3f1mY9XPJWGxynjrmjt/9QGx/IWFaCJi6WieZkK0FLxW/0EU\n3Yz663uNTJ0LCwcPAf8816O3H7N/056SRFvQiPYexCzNHs812HgkBpkBoejtRJV7\nrlO71xrGGFTY7PJVN4VYopM=\n-----END PRIVATE KEY-----\n",
+          "client_email": "vertexai@csci-5410-442522.iam.gserviceaccount.com",
+          "client_id": "106152084513626917135",
           "auth_uri": "https://accounts.google.com/o/oauth2/auth",
           "token_uri": "https://oauth2.googleapis.com/token",
           "auth_provider_x509_cert_url": "https://www.googleapis.com/oauth2/v1/certs",
-          "client_x509_cert_url": "https://www.googleapis.com/robot/v1/metadata/x509/vertex%40csci-5409-441200.iam.gserviceaccount.com",
+          "client_x509_cert_url": "https://www.googleapis.com/robot/v1/metadata/x509/vertexai%40csci-5410-442522.iam.gserviceaccount.com",
           "universe_domain": "googleapis.com"
         }
+
 
   # Lambda Functions
   FetchAWSSecretsLambda:
@@ -262,8 +269,8 @@ Resources:
           import json
 
           def lambda_handler(event, context):
-              secret_name = "tripmate/awssecrets"
-              region_name = event.get('region_name', '${AWS::Region}')
+              secret_name = "trip_mate/awssecrets"
+              region_name = "us-east-1"
 
               # Create a Secrets Manager client
               client = boto3.client("secretsmanager", region_name=region_name)
@@ -299,8 +306,8 @@ Resources:
           import json
 
           def lambda_handler(event, context):
-              secret_name = "tripmate/gcpsecrets"
-              region_name = event.get('region_name', '${AWS::Region}')
+              secret_name = "trip_mate/gcpsecrets"
+              region_name = "us-east-1"
 
               # Create a Secrets Manager client
               client = boto3.client("secretsmanager", region_name=region_name)
@@ -434,9 +441,10 @@ Resources:
               git clone https://github.com/risvarrt/TripMateAI.git
               cd TripMateAI/backend
               npm install
-              echo 'export LAMBDA_AWS_SECRET_URL="${AWSSecretsApiUrl}"' >> ~/.bash_profile
-              echo 'export LAMBDA_GCP_SECRET_URL="${GCPSecretsApiUrl}"' >> ~/.bash_profile
-              source ~/.bash_profile
+              # Set environment variables for Lambda URLs
+              echo 'export LAMBDA_AWS_SECRET_URL="${AWSSecretsApiUrl}"' >> /etc/environment
+              echo 'export LAMBDA_GCP_SECRET_URL="${GCPSecretsApiUrl}"' >> /etc/environment
+              source /etc/environment
               # Start the backend application
               nohup node server.js > server.log 2>&1 &
             - AWSSecretsApiUrl: !Sub 'https://${AWSSecretsApi}.execute-api.${AWS::Region}.amazonaws.com/prod/awssecrets'
@@ -456,23 +464,45 @@ Resources:
           Fn::Sub: 
             - |
               #!/bin/bash
-              sudo su
-              yum update -y
-              yum install -y gcc-c++ make
-              curl -sL https://rpm.nodesource.com/setup_18.x | bash -
-              yum install -y nodejs
-              yum install -y git
+              # Update system packages
+              sudo yum update -y
+
+              # Install necessary tools
+              sudo yum install -y git gcc-c++ make
+              curl -sL https://rpm.nodesource.com/setup_18.x | sudo bash -
+              sudo yum install -y nodejs
+
+              # Clone the frontend code
               cd /home/ec2-user
               git clone https://github.com/risvarrt/TripMateAI.git
               cd TripMateAI/frontend
-              npm install
+
+              # Set environment variable for backend URL
               echo 'export VUE_APP_BACKEND_URL="http://${BackendPrivateIP}:3000"' >> ~/.bash_profile
               source ~/.bash_profile
-              # Start the frontend application
-              nohup npm run serve -- --port 8080 --host 0.0.0.0 > frontend.log 2>&1 &
+
+              # Install dependencies and build the frontend
+              npm install
+              npm run build
+
+              # Serve the production build on port 8080
+              nohup npx serve -s dist --listen 8080 > /home/ec2-user/frontend.log 2>&1 &
             - BackendPrivateIP: !GetAtt BackendInstance.PrivateIpAddress
 
 Outputs:
   FrontendPublicIP:
     Description: Public IP address of the frontend EC2 instance
     Value: !GetAtt FrontendInstance.PublicIp
+
+  PrivateInstancePrivateIP:
+    Description: The private IP of the backend (private) EC2 instance
+    Value: !GetAtt BackendInstance.PrivateIpAddress
+
+  AWSSecretsApiUrl:
+    Description: URL for AWS Secrets API
+    Value: !Sub 'https://${AWSSecretsApi}.execute-api.${AWS::Region}.amazonaws.com/prod/awssecrets'
+
+  GCPSecretsApiUrl:
+    Description: URL for GCP Secrets API
+    Value: !Sub 'https://${GCPSecretsApi}.execute-api.${AWS::Region}.amazonaws.com/prod/gcpsecrets'
+
