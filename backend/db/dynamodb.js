@@ -7,6 +7,9 @@ let dynamoDB;
   const awsSecrets = await fetchAWSSecret();
   AWS.config.update({
     region: awsSecrets.REGION,
+    accessKeyId: awsSecrets.ACCESS_KEY_ID,
+    secretAccessKey: awsSecrets.SECRET_ACCESS_KEY,
+    sessionToken: awsSecrets.SESSION_TOKEN,
   });
   dynamoDB = new AWS.DynamoDB.DocumentClient();
 })();
