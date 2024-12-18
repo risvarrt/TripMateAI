@@ -41,7 +41,7 @@ Tripmate AI follows a 3-tier architecture:
 3. **Data Storage Layer**: Trip data and itineraries stored in DynamoDB and S3.
 
 ### Diagram
-![Architecture Diagram](assets\tripmate.png)
+![tripmate](https://github.com/user-attachments/assets/bd433c85-d847-4149-b658-17e441fd6862)
 
 
 ## Getting Started
