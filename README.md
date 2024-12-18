@@ -21,7 +21,7 @@
 - **Node.js**: Handles backend APIs and logic.
 
 ### Frontend
-- **React.js**: Frontend framework for a dynamic and responsive user interface.
+- **Vue.js**: Frontend framework for a dynamic and responsive user interface.
 - **AWS EC2**: Hosts the React.js frontend.
 
 ### Cloud Services
