@@ -3,7 +3,7 @@
 **Tripmate AI** is an AI-powered cloud-based travel planning application designed to provide personalized trip itineraries based on user preferences. Built using modern cloud technologies, Tripmate AI offers a seamless user experience with features like real-time collaboration, itinerary generation, and offline access. The application leverages AWS services for secure, scalable, and cost-effective deployment.
 
 
-https://github.com/user-attachments/assets/9f071f11-53ab-4f61-9691-3c73ebc358c5
+https://github.com/user-attachments/assets/22d7ef02-3e17-4dc6-abba-c4fe5cbf97ab
 
 
 ## Features
