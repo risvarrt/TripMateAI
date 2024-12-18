@@ -23,7 +23,7 @@ const initializeCredentials = async () => {
   try {
     
     const credentials = await fetchGCPSecret();
-
+    console.log('credentials',credentials)
     // Ensure the private_key is properly formatted
     credentials.private_key = credentials.private_key.replace(/\\n/g, "\n");
 

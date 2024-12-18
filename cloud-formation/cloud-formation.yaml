@@ -1,0 +1,436 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: CloudFormation template to deploy TripMateAI application with dynamic secrets and API Gateway endpoints.
+
+Parameters:
+  KeyName:
+    Type: AWS::EC2::KeyPair::KeyName
+    Description: Name of an existing EC2 KeyPair to enable SSH access to the instances
+
+Resources:
+  # VPC
+  TripMateVPC:
+    Type: AWS::EC2::VPC
+    Properties:
+      CidrBlock: 10.0.0.0/16
+      EnableDnsSupport: true
+      EnableDnsHostnames: true
+      Tags:
+        - Key: Name
+          Value: TripMateVPC
+
+  # Internet Gateway
+  InternetGateway:
+    Type: AWS::EC2::InternetGateway
+    Properties:
+      Tags:
+        - Key: Name
+          Value: TripMateInternetGateway
+
+  AttachGateway:
+    Type: AWS::EC2::VPCGatewayAttachment
+    Properties:
+      VpcId: !Ref TripMateVPC
+      InternetGatewayId: !Ref InternetGateway
+
+  # Public Subnet
+  PublicSubnet:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref TripMateVPC
+      CidrBlock: 10.0.1.0/24
+      MapPublicIpOnLaunch: true
+      AvailabilityZone: !Select [0, !GetAZs '']
+      Tags:
+        - Key: Name
+          Value: TripMatePublicSubnet
+
+  # Route Tables
+  PublicRouteTable:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId: !Ref TripMateVPC
+      Tags:
+        - Key: Name
+          Value: TripMatePublicRouteTable
+
+  # Routes
+  PublicRoute:
+    Type: AWS::EC2::Route
+    DependsOn: AttachGateway
+    Properties:
+      RouteTableId: !Ref PublicRouteTable
+      DestinationCidrBlock: 0.0.0.0/0
+      GatewayId: !Ref InternetGateway
+
+  # Subnet Route Table Associations
+  PublicSubnetRouteTableAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: !Ref PublicSubnet
+      RouteTableId: !Ref PublicRouteTable
+
+  # Security Groups
+  FrontendSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Allow HTTP (8080) and SSH access to the frontend instance
+      VpcId: !Ref TripMateVPC
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 22
+          ToPort: 22
+          CidrIp: 0.0.0.0/0  # Allow SSH from anywhere
+        - IpProtocol: tcp
+          FromPort: 8080
+          ToPort: 8080
+          CidrIp: 0.0.0.0/0  # Allow HTTP traffic to the frontend on port 8080
+        - IpProtocol: tcp
+          FromPort: 443
+          ToPort: 443
+          CidrIp: 0.0.0.0/0  # Allow HTTPS traffic to the frontend
+      Tags:
+        - Key: Name
+          Value: TripMateFrontendSG
+
+  BackendSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Allow traffic from the frontend instance and SSH access to the backend
+      VpcId: !Ref TripMateVPC
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 22
+          ToPort: 22
+          CidrIp: 0.0.0.0/0  # Allow SSH from anywhere
+        - IpProtocol: tcp
+          FromPort: 3000
+          ToPort: 3000
+          CidrIp: 0.0.0.0/0  # Allow backend traffic on port 3000
+      Tags:
+        - Key: Name
+          Value: TripMateBackendSG
+
+  # Cognito User Pool
+  CognitoUserPool:
+    Type: AWS::Cognito::UserPool
+    Properties:
+      UserPoolName: TripMateUserPool
+      AutoVerifiedAttributes:
+        - email
+      UsernameAttributes:
+        - email
+      Policies:
+        PasswordPolicy:
+          MinimumLength: 8
+          RequireUppercase: true
+          RequireLowercase: true
+          RequireNumbers: true
+          RequireSymbols: true
+
+  # Cognito User Pool Client
+  CognitoUserPoolClient:
+    Type: AWS::Cognito::UserPoolClient
+    Properties:
+      ClientName: TripMateUserPoolClient
+      UserPoolId: !Ref CognitoUserPool
+      GenerateSecret: true
+      AllowedOAuthFlowsUserPoolClient: true
+      AllowedOAuthFlows:
+        - code
+        - implicit
+      AllowedOAuthScopes:
+        - email
+        - openid
+        - aws.cognito.signin.user.admin
+      CallbackURLs:
+        - 'https://localhost/'
+      LogoutURLs:
+        - 'https://localhost/'
+
+  # S3 Bucket
+  TripItineraryBucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: !Sub 'trip-itinerary-${AWS::AccountId}-${AWS::Region}'
+      AccessControl: Private
+
+  # DynamoDB Table
+  TripRecordsTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: 'TripRecords'
+      AttributeDefinitions:
+        - AttributeName: 'TripId'
+          AttributeType: 'S'
+      KeySchema:
+        - AttributeName: 'TripId'
+          KeyType: 'HASH'
+      BillingMode: PAY_PER_REQUEST
+
+  # Secrets Manager Secret for AWS Secrets
+  TripMateAWSSecrets:
+    Type: AWS::SecretsManager::Secret
+    Properties:
+      Name: 'trip_mate/awssecrets'
+      Description: 'AWS secrets for TripMate application'
+      SecretString: !Sub |
+        {
+          "REGION": "${AWS::Region}",
+          "USER_POOL_ID": "${CognitoUserPool}",
+          "CLIENT_ID": "${CognitoUserPoolClient}",
+          "CLIENT_SECRET": "${CognitoUserPoolClient.ClientSecret}",
+          "BUCKET_NAME": "${TripItineraryBucket}",
+          "aws_access_key_id": "ASIAUKHE74AQYRI4CIRB",
+          "aws_secret_access_key": "key",
+          "aws_session_token": "key"
+          }
+          
+  # Secrets Manager Secret for GCP Secrets
+  TripMateGCPSecrets:
+    Type: AWS::SecretsManager::Secret
+    Properties:
+      Name: 'trip_mate/gcpsecrets'
+      Description: 'GCP service account secret key for TripMate application'
+      SecretString: !Sub |
+        {
+         service-account-key.json
+        }
+
+
+
+  # Lambda Functions
+  FetchAWSSecretsLambda:
+    Type: AWS::Lambda::Function
+    Properties:
+      FunctionName: !Sub 'FetchAWSSecretsLambda-${AWS::StackName}'
+      Handler: index.lambda_handler
+      Role: !Sub 'arn:aws:iam::${AWS::AccountId}:role/LabRole'
+      Runtime: python3.9
+      Code:
+        ZipFile: |
+          import boto3
+          import json
+
+          def lambda_handler(event, context):
+              secret_name = "trip_mate/awssecrets"
+              region_name = "us-east-1"
+
+              client = boto3.client("secretsmanager", region_name=region_name)
+
+              try:
+                  response = client.get_secret_value(SecretId=secret_name)
+                  secret = json.loads(response["SecretString"])
+                  
+                  return {
+                      "statusCode": 200,
+                      "body": json.dumps({
+                          "message": "AWS Secret fetched successfully",
+                          "secret": secret
+                      })
+                  }
+              except Exception as e:
+                  return {
+                      "statusCode": 500,
+                      "body": json.dumps({"error": str(e)})
+                  }
+
+  FetchGCPSecretsLambda:
+    Type: AWS::Lambda::Function
+    Properties:
+      FunctionName: !Sub 'FetchGCPSecretsLambda-${AWS::StackName}'
+      Handler: index.lambda_handler
+      Role: !Sub 'arn:aws:iam::${AWS::AccountId}:role/LabRole'
+      Runtime: python3.9
+      Code:
+        ZipFile: |
+          import boto3
+          import json
+
+          def lambda_handler(event, context):
+              secret_name = "trip_mate/gcpsecrets"
+              region_name = "us-east-1"
+
+              client = boto3.client("secretsmanager", region_name=region_name)
+
+              try:
+                  response = client.get_secret_value(SecretId=secret_name)
+                  secret = json.loads(response["SecretString"])
+                  
+                  return {
+                      "statusCode": 200,
+                      "body": json.dumps({
+                          "message": "GCP Secret fetched successfully",
+                          "secret": secret
+                      })
+                  }
+              except Exception as e:
+                  return {
+                      "statusCode": 500,
+                      "body": json.dumps({"error": str(e)})
+                  }
+
+  # API Gateway for Lambda Functions
+  AWSSecretsApi:
+    Type: AWS::ApiGateway::RestApi
+    Properties:
+      Name: 'AWSSecretsApi'
+
+  AWSSecretsApiResource:
+    Type: AWS::ApiGateway::Resource
+    Properties:
+      RestApiId: !Ref AWSSecretsApi
+      ParentId: !GetAtt [AWSSecretsApi, RootResourceId]
+      PathPart: 'awssecrets'
+
+  AWSSecretsApiMethod:
+    Type: AWS::ApiGateway::Method
+    Properties:
+      RestApiId: !Ref AWSSecretsApi
+      ResourceId: !Ref AWSSecretsApiResource
+      HttpMethod: GET
+      AuthorizationType: NONE
+      Integration:
+        Type: AWS_PROXY
+        IntegrationHttpMethod: POST
+        Uri: !Sub
+          - 'arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${LambdaArn}/invocations'
+          - LambdaArn: !GetAtt FetchAWSSecretsLambda.Arn
+
+  AWSSecretsApiDeployment:
+    Type: AWS::ApiGateway::Deployment
+    Properties:
+      RestApiId: !Ref AWSSecretsApi
+      StageName: 'prod'
+    DependsOn:
+      - AWSSecretsApiMethod
+
+  PermissionForApiToInvokeLambda:
+    Type: AWS::Lambda::Permission
+    Properties:
+      FunctionName: !Ref FetchAWSSecretsLambda
+      Action: 'lambda:InvokeFunction'
+      Principal: 'apigateway.amazonaws.com'
+      SourceArn: !Sub 'arn:aws:execute-api:${AWS::Region}:${AWS::AccountId}:${AWSSecretsApi}/*/GET/awssecrets'
+
+  GCPSecretsApi:
+    Type: AWS::ApiGateway::RestApi
+    Properties:
+      Name: 'GCPSecretsApi'
+
+  GCPSecretsApiResource:
+    Type: AWS::ApiGateway::Resource
+    Properties:
+      RestApiId: !Ref GCPSecretsApi
+      ParentId: !GetAtt [GCPSecretsApi, RootResourceId]
+      PathPart: 'gcpsecrets'
+
+  GCPSecretsApiMethod:
+    Type: AWS::ApiGateway::Method
+    Properties:
+      RestApiId: !Ref GCPSecretsApi
+      ResourceId: !Ref GCPSecretsApiResource
+      HttpMethod: GET
+      AuthorizationType: NONE
+      Integration:
+        Type: AWS_PROXY
+        IntegrationHttpMethod: POST
+        Uri: !Sub
+          - 'arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${LambdaArn}/invocations'
+          - LambdaArn: !GetAtt FetchGCPSecretsLambda.Arn
+
+  GCPSecretsApiDeployment:
+    Type: AWS::ApiGateway::Deployment
+    Properties:
+      RestApiId: !Ref GCPSecretsApi
+      StageName: 'prod'
+    DependsOn:
+      - GCPSecretsApiMethod
+
+  PermissionForApiToInvokeLambdaGCP:
+    Type: AWS::Lambda::Permission
+    Properties:
+      FunctionName: !Ref FetchGCPSecretsLambda
+      Action: 'lambda:InvokeFunction'
+      Principal: 'apigateway.amazonaws.com'
+      SourceArn: !Sub 'arn:aws:execute-api:${AWS::Region}:${AWS::AccountId}:${GCPSecretsApi}/*/GET/gcpsecrets'
+
+  # EC2 Instances
+  BackendInstance:
+    Type: AWS::EC2::Instance
+    Properties:
+      InstanceType: t2.small
+      KeyName: !Ref KeyName
+      ImageId: ami-0453ec754f44f9a4a  # Amazon Linux 2023 AMI
+      SubnetId: !Ref PublicSubnet
+      SecurityGroupIds:
+        - !Ref BackendSecurityGroup
+      UserData:
+        Fn::Base64:
+          Fn::Sub:
+            - |
+              #!/bin/bash
+              sudo su
+              yum update -y
+              yum install -y gcc-c++ make
+              curl -sL https://rpm.nodesource.com/setup_18.x | bash -
+              yum install -y nodejs
+              yum install -y git
+              cd /home/ec2-user
+              git clone https://github.com/risvarrt/TripMateAI.git
+              cd TripMateAI/backend
+              npm install
+              echo 'export LAMBDA_AWS_SECRET_URL="${AWSSecretsApiUrl}"' >> /etc/environment
+              echo 'export LAMBDA_GCP_SECRET_URL="${GCPSecretsApiUrl}"' >> /etc/environment
+              source /etc/environment
+              nohup node server.js > server.log 2>&1 &
+            - AWSSecretsApiUrl: !Sub 'https://${AWSSecretsApi}.execute-api.${AWS::Region}.amazonaws.com/prod/awssecrets'
+              GCPSecretsApiUrl: !Sub 'https://${GCPSecretsApi}.execute-api.${AWS::Region}.amazonaws.com/prod/gcpsecrets'
+
+  FrontendInstance:
+    Type: AWS::EC2::Instance
+    Properties:
+      InstanceType: t2.small
+      KeyName: !Ref KeyName
+      ImageId: ami-0453ec754f44f9a4a # Amazon Linux 2023 AMI
+      SubnetId: !Ref PublicSubnet
+      SecurityGroupIds:
+        - !Ref FrontendSecurityGroup
+      UserData:
+        Fn::Base64:
+          Fn::Sub: 
+            - |
+              #!/bin/bash
+              sudo yum update -y
+              sudo yum install -y git gcc-c++ make
+              curl -sL https://rpm.nodesource.com/setup_18.x | sudo bash -
+              sudo yum install -y nodejs
+              cd /home/ec2-user
+              git clone https://github.com/risvarrt/TripMateAI.git
+              cd TripMateAI/frontend
+              echo "export VUE_APP_BACKEND_URL=http://${BackendPublicDNS}:3000" > /etc/environment
+              source /etc/environment
+              npm install
+              npm run build
+              nohup npx serve -s dist --listen 8080 > /home/ec2-user/frontend.log 2>&1 &
+            - BackendPublicDNS: !GetAtt BackendInstance.PublicDnsName
+
+Outputs:
+  FrontendPublicIP:
+    Description: Public IP address of the frontend EC2 instance
+    Value: !GetAtt FrontendInstance.PublicIp
+
+  BackendPublicIP:
+    Description: Public IP address of the backend EC2 instance
+    Value: !GetAtt BackendInstance.PublicIp
+
+  BackendPublicDNS:
+    Description: Public DNS name of the backend EC2 instance
+    Value: !GetAtt BackendInstance.PublicDnsName
+
+  AWSSecretsApiUrl:
+    Description: URL for AWS Secrets API
+    Value: !Sub 'https://${AWSSecretsApi}.execute-api.${AWS::Region}.amazonaws.com/prod/awssecrets'
+
+  GCPSecretsApiUrl:
+    Description: URL for GCP Secrets API
+    Value: !Sub 'https://${GCPSecretsApi}.execute-api.${AWS::Region}.amazonaws.com/prod/gcpsecrets'
